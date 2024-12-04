@@ -7,6 +7,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
@@ -65,9 +66,9 @@ fun Application.module() {
                 } else {
                     val borrowedItems = transaction {
                         Items.select(Items.borrower eq username)
-                            .map { it[Items.title] }
+                            .map { it.toUserJson() }
                     }
-                    call.respond(HttpStatusCode.OK, borrowedItems)
+                    call.respond(HttpStatusCode.OK, mapOf("borrowedItems" to borrowedItems))
                 }
             }
         }
@@ -99,7 +100,7 @@ fun Application.module() {
                 )
                 val results = transaction {
                     Items.select((Items.title eq query) or (Items.ISBN eq query))
-                        .map { it[Items.title] }
+                        .map { it.toItemJson() }
                 }
                 if (results.isEmpty()) {
                     call.respondText("No items found", status = HttpStatusCode.NotFound)
@@ -143,4 +144,24 @@ fun Application.module() {
             }
         }
     }
+}
+
+fun ResultRow.toItemJson(): Map<String, Any?> {
+    return mapOf(
+        "id" to this[Items.id],
+        "title" to this[Items.title],
+        "ISBN" to this[Items.ISBN],
+        "type" to this[Items.type],
+        "borrower" to this[Items.borrower],
+        "borrowedDate" to this[Items.borrowedDate],
+        "dueDate" to this[Items.dueDate],
+        "isBorrowed" to this[Items.isBorrowed]
+    )
+}
+
+fun ResultRow.toUserJson(): Map<String, Any?> {
+    return mapOf(
+        "username" to this[Users.username],
+        "password" to this[Users.password]
+    )
 }
