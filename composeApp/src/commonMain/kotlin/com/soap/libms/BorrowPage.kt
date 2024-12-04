@@ -63,6 +63,7 @@ fun SearchResultsTable(items: List<Item>, modifier: Modifier = Modifier, windowS
             Text("Title", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             if (windowSizeClass != WindowSizeClass.COMPACT) {
                 Text("Type", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Text("ISBN", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             }
             Text("Borrow", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
         }
@@ -76,6 +77,7 @@ fun SearchResultsTable(items: List<Item>, modifier: Modifier = Modifier, windowS
                     Text(item.title, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (windowSizeClass != WindowSizeClass.COMPACT) {
                         Text(item.type, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(item.ISBN, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = { item.borrow() },

@@ -8,8 +8,7 @@ fun search(query: String): List<Item> {
                 id = 1,
                 title = "The Great Gatsby",
                 type = "Book",
-                ISBN = "978-3-16-148410-0",
-                isBorrowed = false
+                ISBN = "978-3-16-148410-0"
             )
         )
         else -> emptyList()

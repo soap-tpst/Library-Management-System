@@ -92,7 +92,6 @@ fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) 
             title = "The Great Gatsby",
             type = "Book",
             ISBN = "978-3-16-148410-0",
-            isBorrowed = true,
             borrowedDate = "2021-10-01",
             dueDate = "2021-10-15"
         ),

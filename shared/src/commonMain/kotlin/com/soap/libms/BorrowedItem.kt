@@ -5,10 +5,9 @@ class BorrowedItem(
     title: String,
     ISBN: String,
     type: String,
-    isBorrowed: Boolean,
     val borrowedDate: String,
     val dueDate: String
-) : Item(id, title, ISBN, type, isBorrowed) {
+) : Item(id, title, ISBN, type) {
     fun returnItem() {
         TODO()
     }
