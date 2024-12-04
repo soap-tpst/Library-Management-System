@@ -7,13 +7,10 @@ import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
+import org.json.JSONObject
 import java.time.LocalDate
 
 fun main() {
@@ -53,22 +50,22 @@ fun Application.module() {
                 }
                 call.respondText("User added")
             }
-
             post("/login") {
                 val (username, password) = receiveUsernameAndPassword(call) ?: return@post
-                val user = transaction {
-                    Users.select((Users.username eq username) and (Users.password eq password))
-                        .map { it[Users.username] }
-                        .firstOrNull()
+                val userExists = transaction {
+                    Users.selectAll().where((Users.username eq username) and (Users.password eq password))
+                        .count() > 0
                 }
-                if (user == null) {
+
+                if (!userExists) {
                     call.respondText("Invalid username or password", status = HttpStatusCode.Unauthorized)
                 } else {
                     val borrowedItems = transaction {
-                        Items.select(Items.borrower eq username)
-                            .map { it.toUserJson() }
+                        Items.selectAll()
+                            .where ( Items.borrower eq username and Items.isBorrowed )
+                            .map { it.toItemJson() }
                     }
-                    call.respond(HttpStatusCode.OK, mapOf("borrowedItems" to borrowedItems))
+                    call.respondText(borrowedItems.toString(), status = HttpStatusCode.OK)
                 }
             }
         }
@@ -87,6 +84,7 @@ fun Application.module() {
                         it[Items.title] = title
                         it[Items.ISBN] = ISBN
                         it[Items.type] = type
+                        it[isBorrowed] = false
                     }
                 }
                 call.respondText("Item added")
@@ -99,13 +97,15 @@ fun Application.module() {
                     status = HttpStatusCode.BadRequest
                 )
                 val results = transaction {
-                    Items.select((Items.title eq query) or (Items.ISBN eq query))
+                    Items.selectAll()
+                        .where((Items.title eq query) or (Items.ISBN eq query))
                         .map { it.toItemJson() }
                 }
+                val resultsJson = mapOf("results" to results)
                 if (results.isEmpty()) {
                     call.respondText("No items found", status = HttpStatusCode.NotFound)
                 } else {
-                    call.respond(HttpStatusCode.OK, results)
+                    call.respondText(JSONObject(resultsJson).toString(), status = HttpStatusCode.OK)
                 }
             }
 
@@ -148,7 +148,7 @@ fun Application.module() {
 
 fun ResultRow.toItemJson(): Map<String, Any?> {
     return mapOf(
-        "id" to this[Items.id],
+        "id" to (this.getOrNull(Items.id) ?: -1), // Add null safety
         "title" to this[Items.title],
         "ISBN" to this[Items.ISBN],
         "type" to this[Items.type],
@@ -156,12 +156,5 @@ fun ResultRow.toItemJson(): Map<String, Any?> {
         "borrowedDate" to this[Items.borrowedDate],
         "dueDate" to this[Items.dueDate],
         "isBorrowed" to this[Items.isBorrowed]
-    )
-}
-
-fun ResultRow.toUserJson(): Map<String, Any?> {
-    return mapOf(
-        "username" to this[Users.username],
-        "password" to this[Users.password]
     )
 }

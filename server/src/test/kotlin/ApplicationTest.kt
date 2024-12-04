@@ -1,123 +1,262 @@
-import com.soap.libms.module
+package com.soap.libms
+
 import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.deleteAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.json.JSONObject
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+
 class ApplicationTest {
+    init {
+        Database.connect("jdbc:sqlite:library-database.sqlite", driver = "org.sqlite.JDBC")
+    }
+    // ... rest of your test cases
+
+
     @Test
-    fun testRoot() = testApplication {
+    fun `test root endpoint returns Ktor`() = testApplication {
         application {
             module()
         }
-        val response = client.get("/")
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("Ktor", response.bodyAsText())
+        client.get("/").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Ktor", bodyAsText())
+        }
     }
 
     @Test
-    fun testUserRegistration() = testApplication {
+    fun `test user registration with valid credentials`() = testApplication {
         application {
             module()
         }
-        val response = client.post("/users/add") {
-            setBody(listOf("username" to "testUser", "password" to "testPass").formUrlEncode())
-            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-        }
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("User added", response.bodyAsText())
-    }
-
-    @Test
-    fun testUserLogin() = testApplication {
-        application {
-            module()
-        }
-        // First register the user
         client.post("/users/add") {
-            setBody(listOf("username" to "loginUser", "password" to "loginPass").formUrlEncode())
+            setBody(listOf(
+                "username" to "newTestUser",
+                "password" to "securePass123"
+            ).formUrlEncode())
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("User added", bodyAsText())
         }
 
-        // Then try to login
-        val response = client.post("/users/login") {
-            setBody(listOf("username" to "loginUser", "password" to "loginPass").formUrlEncode())
+        // Add second user
+        client.post("/users/add") {
+            setBody(listOf(
+                "username" to "secondUser",
+                "password" to "pass456"
+            ).formUrlEncode())
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("User added", bodyAsText())
         }
-        assertEquals(HttpStatusCode.OK, response.status)
     }
 
     @Test
-    fun testAddItem() = testApplication {
+    fun `test user registration fails with missing credentials`() = testApplication {
         application {
             module()
         }
-        val response = client.post("/items/add") {
+        client.post("/users/add") {
+            setBody(listOf("username" to "testUser").formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
+            assertEquals("Missing password", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test user login with valid credentials and borrow`() = testApplication {
+        application {
+            module()
+        }
+
+        transaction {
+            Users.deleteAll()
+            Items.deleteAll()
+        }
+
+        // Register user
+        client.post("/users/add") {
+            setBody(listOf(
+                "username" to "testUser123",
+                "password" to "testPass123"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("User added", bodyAsText())
+        }
+
+        client.post("/items/add") {
+            setBody(listOf(
+                "title" to "Complete Guide to Kotlin",
+                "ISBN" to "978-0-123456-78-9",
+                "type" to "book",
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }
+
+
+
+        var id = 0
+
+        client.get("/items/search?query=Complete Guide to Kotlin").apply {
+
+            data class Response(val json: String): JSONObject(json) {
+                val items = this.getJSONArray("results")
+            }
+
+            lateinit var item: JSONObject
+
+            Response(bodyAsText()).items.forEach {
+                item = JSONObject(it.toString())
+            }
+            id = item.getInt("id")
+            println(item.toString())
+        }
+
+        client.post("/items/borrow") {
+            setBody(listOf(
+                "id" to id.toString(),
+                "username" to "testUser123"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+
+        // Login
+        client.post("/users/login") {
+            setBody(listOf(
+                "username" to "testUser123",
+                "password" to "testPass123"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertTrue(bodyAsText().contains("Complete Guide to Kotlin"))
+        }
+    }
+
+    @Test
+    fun `test adding new item`() = testApplication {
+        application {
+            module()
+        }
+        client.post("/items/add") {
+            setBody(listOf(
+                "title" to "Complete Guide to Kotlin",
+                "ISBN" to "978-0-123456-78-9",
+                "type" to "book"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Item added", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test searching existing item`() = testApplication {
+        application {
+            module()
+        }
+        // Add item first
+        client.post("/items/add") {
+            setBody(listOf(
+                "title" to "Complete Guide to Kotlin",
+                "ISBN" to "978-0-123456-78-9",
+                "type" to "book"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }
+
+        // Test search
+        client.get("/items/search?query=Complete Guide to Kotlin").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertTrue(bodyAsText().contains("Complete Guide to Kotlin"))
+            assertTrue(bodyAsText().contains("978-0-123456-78-9"))
+        }
+    }
+
+    @Test
+    fun `test borrowing an item`() = testApplication {
+        application {
+            module()
+        }
+        // Add item first
+        client.post("/items/add") {
             setBody(listOf(
                 "title" to "Test Book",
-                "ISBN" to "123456789",
-                "type" to "book"
-            ).formUrlEncode())
-            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-        }
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("Item added", response.bodyAsText())
-    }
-
-    @Test
-    fun testSearchItem() = testApplication {
-        application {
-            module()
-        }
-        // First add an item
-        client.post("/items/add") {
-            setBody(listOf(
-                "title" to "Search Test Book",
-                "ISBN" to "987654321",
+                "ISBN" to "123-4-567890-12-3",
                 "type" to "book"
             ).formUrlEncode())
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
         }
 
-        // Then search for it
-        val response = client.get("/items/search?query=Search Test Book")
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("Search Test Book"))
-    }
-
-    @Test
-    fun testBorrowAndReturnItem() = testApplication {
-        application {
-            module()
-        }
-        // Add an item first
-        client.post("/items/add") {
-            setBody(listOf(
-                "title" to "Borrow Test Book",
-                "ISBN" to "111222333",
-                "type" to "book"
-            ).formUrlEncode())
-            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-        }
-
-        // Borrow the item
-        val borrowResponse = client.post("/items/borrow") {
+        // Test borrow
+        client.post("/items/borrow") {
             setBody(listOf(
                 "id" to "1",
-                "username" to "borrowUser"
+                "username" to "libraryUser"
+            ).formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+
+    @Test
+    fun `test returning a borrowed item`() = testApplication {
+        application {
+            module()
+        }
+        // Setup: Add and borrow item
+        client.post("/items/add") {
+            setBody(listOf(
+                "title" to "Return Test Book",
+                "ISBN" to "123-4-567890-12-3",
+                "type" to "book"
             ).formUrlEncode())
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
         }
-        assertEquals(HttpStatusCode.OK, borrowResponse.status)
 
-        // Return the item
-        val returnResponse = client.post("/items/return") {
-            setBody(listOf("id" to "1").formUrlEncode())
+        client.post("/items/borrow") {
+            setBody(listOf(
+                "id" to "1",
+                "username" to "libraryUser"
+            ).formUrlEncode())
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
         }
-        assertEquals(HttpStatusCode.OK, returnResponse.status)
+
+        // Test return
+        client.post("/items/return") {
+            setBody(listOf("id" to "1").formUrlEncode())
+            header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+
+
+    @Test
+    fun `test search returns not found for non-existent items`() = testApplication {
+        application {
+            module()
+        }
+        client.get("/items/search?query=NonExistentBook").apply {
+            assertEquals(HttpStatusCode.NotFound, status)
+            assertEquals("No items found", bodyAsText())
+        }
     }
 }
