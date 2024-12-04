@@ -21,6 +21,8 @@ fun main() {
 }
 
 fun Application.module() {
+    DatabaseFactory.init()
+
     routing {
         get("/") {
             call.respondText("Ktor")

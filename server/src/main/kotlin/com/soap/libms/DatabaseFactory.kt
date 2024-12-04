@@ -6,7 +6,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object DatabaseFactory {
     fun init() {
-        Database.connect("jdbc:sqlite:sample.db", driver = "org.sqlite.JDBC")
+        Database.connect("jdbc:sqlite:library-database.sqlite", driver = "org.sqlite.JDBC")
         transaction {
             SchemaUtils.create(Users, Items)
         }
