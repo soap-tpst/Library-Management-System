@@ -1,17 +1,17 @@
 package com.soap.libms
 
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import io.ktor.server.request.receiveParameters
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.LocalDate
 
@@ -23,6 +23,19 @@ fun main() {
 fun Application.module() {
     DatabaseFactory.init()
 
+    suspend fun receiveUsernameAndPassword(call: ApplicationCall): Pair<String, String>? {
+        val params = call.receiveParameters()
+        val username = params["username"] ?: run {
+            call.respondText("Missing username", status = HttpStatusCode.BadRequest)
+            return null
+        }
+        val password = params["password"] ?: run {
+            call.respondText("Missing password", status = HttpStatusCode.BadRequest)
+            return null
+        }
+        return Pair(username, password)
+    }
+
     routing {
         get("/") {
             call.respondText("Ktor")
@@ -30,15 +43,7 @@ fun Application.module() {
 
         route("/users") {
             post("/add") {
-                val params = call.receiveParameters()
-                val username = params["username"] ?: return@post call.respondText(
-                    "Missing username",
-                    status = HttpStatusCode.BadRequest
-                )
-                val password = params["password"] ?: return@post call.respondText(
-                    "Missing password",
-                    status = HttpStatusCode.BadRequest
-                )
+                val (username, password) = receiveUsernameAndPassword(call) ?: return@post
                 transaction {
                     Users.insert {
                         it[Users.username] = username
@@ -49,15 +54,7 @@ fun Application.module() {
             }
 
             post("/login") {
-                val params = call.receiveParameters()
-                val username = params["username"] ?: return@post call.respondText(
-                    "Missing username",
-                    status = HttpStatusCode.BadRequest
-                )
-                val password = params["password"] ?: return@post call.respondText(
-                    "Missing password",
-                    status = HttpStatusCode.BadRequest
-                )
+                val (username, password) = receiveUsernameAndPassword(call) ?: return@post
                 val user = transaction {
                     Users.select((Users.username eq username) and (Users.password eq password))
                         .map { it[Users.username] }
