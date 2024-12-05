@@ -32,17 +32,23 @@ fun LoginPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, v
         ) {
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = {
+                    if (it.matches(Regex("^[a-zA-Z0-9]*$"))) username = it
+                },
                 label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    if (it.matches(Regex("^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]*$"))) password = it
+                },
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
             Spacer(Modifier.height(16.dp))
             Row(
@@ -51,21 +57,27 @@ fun LoginPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, v
                 OutlinedTextField(
                     value = host,
                     onValueChange = {
-                        Host.host = it
-                        host = it
+                        if (it.matches(Regex("^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]*$"))) {
+                            Host.host = it
+                            host = it
+                        }
                                     },
                     label = { Text("Host") },
-                    modifier = Modifier.weight(2f).fillMaxWidth()
+                    modifier = Modifier.weight(2f).fillMaxWidth(),
+                    singleLine = true
                 )
                 Spacer(Modifier.width(16.dp))
                 OutlinedTextField(
                     value = port.toString(),
                     onValueChange = {
-                        Host.port = it.toInt()
-                        port = it.toInt()
+                        if (it.matches(Regex("^\\d{1,5}$"))) {
+                            Host.port = it.toInt()
+                            port = it.toInt()
+                        }
                                     },
                     label = { Text("Port") },
-                    modifier = Modifier.weight(1f).fillMaxWidth()
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    singleLine = true
                 )
             }
             Spacer(Modifier.height(16.dp))
