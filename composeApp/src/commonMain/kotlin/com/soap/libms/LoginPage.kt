@@ -1,10 +1,7 @@
 package com.soap.libms
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -12,11 +9,23 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 
 @Composable
-fun LoginPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, verticalArrangement: Arrangement.Vertical = Arrangement.Center, shape: Shape = RectangleShape){
+fun LoginPage(
+    modifier: Modifier = Modifier,
+    windowSizeClass: WindowSizeClass,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Center,
+    shape: Shape = RectangleShape,
+    onLoginSuccess: () -> Unit
+) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPopUpWindow by remember { mutableStateOf(false) }
+    var loginStatus by remember { mutableStateOf(false) }
 
     var host by remember { mutableStateOf(Host.host) }
     var port by remember { mutableStateOf(Host.port) }
@@ -92,10 +101,48 @@ fun LoginPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, v
                 }
                 Button(
                     modifier = buttonModifier,
-                    onClick = { CurrentUserInstance.login(username, password) }) {
+                    onClick = {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            if (CurrentUserInstance.login(username, password)) {
+                                loginStatus = true
+                            }
+                        }
+                        showPopUpWindow = true
+                    }
+                ) {
                     Text("Login")
                 }
+                if (showPopUpWindow) {
+                    if (loginStatus) {
+                        AlertDialog(
+                            onDismissRequest = { showPopUpWindow = false },
+                            title = { Text("Success") },
+                            text = { Text("You have successfully logged in!") },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showPopUpWindow = false
+                                    onLoginSuccess()
+                                }) {
+                                    Text("OK")
+                                }
+                            }
+                        )
+                    }
+                    else {
+                        AlertDialog(
+                            onDismissRequest = { showPopUpWindow = false },
+                            title = { Text("Error") },
+                            text = { Text("Invalid username or password") },
+                            confirmButton = {
+                                TextButton(onClick = { showPopUpWindow = false }) {
+                                    Text("OK")
+                                }
+                            }
+                        )
+                    }
+
+                }
+            }
             }
         }
     }
-}

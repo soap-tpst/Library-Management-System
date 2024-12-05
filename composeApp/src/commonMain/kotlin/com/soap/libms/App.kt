@@ -43,7 +43,8 @@ fun App(windowSizeClass: WindowSizeClass) {
                     MainWidget(
                         modifier = Modifier.weight(1f),
                         page = currentPage,
-                        windowSizeClass = windowSizeClass
+                        windowSizeClass = windowSizeClass,
+                        onLoginSuccess = { currentPage = Page.BORROW }
                     )
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth(),
@@ -125,7 +126,8 @@ fun App(windowSizeClass: WindowSizeClass) {
                         modifier = Modifier.weight(1f),
                         page = currentPage,
                         windowSizeClass = windowSizeClass,
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        onLoginSuccess = { currentPage = Page.BORROW }
                     )
                 }
             }
@@ -217,7 +219,8 @@ fun App(windowSizeClass: WindowSizeClass) {
                         modifier = Modifier.weight(1f).fillMaxSize(),
                         page = currentPage,
                         windowSizeClass = windowSizeClass,
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        onLoginSuccess = { currentPage = Page.BORROW }
                     )
                 }
             }
@@ -226,10 +229,16 @@ fun App(windowSizeClass: WindowSizeClass) {
 }
 
 @Composable
-fun MainWidget(modifier: Modifier = Modifier, page: Page, windowSizeClass: WindowSizeClass, shape: Shape = RectangleShape) {
+fun MainWidget(
+    modifier: Modifier = Modifier,
+    page: Page,
+    windowSizeClass: WindowSizeClass,
+    shape: Shape = RectangleShape,
+    onLoginSuccess: () -> Unit
+) {
     when (page) {
         Page.BORROW -> BorrowPage(modifier = modifier, windowSizeClass = windowSizeClass, shape = shape)
         Page.RETURN -> ReturnPage(modifier = modifier, windowSizeClass = windowSizeClass, shape = shape)
-        Page.LOGIN -> LoginPage(modifier = modifier, windowSizeClass = windowSizeClass, shape = shape)
+        Page.LOGIN -> LoginPage(modifier = modifier, windowSizeClass = windowSizeClass, shape = shape, onLoginSuccess = onLoginSuccess)
     }
 }
