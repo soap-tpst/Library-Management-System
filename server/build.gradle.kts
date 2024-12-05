@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
     application
@@ -22,5 +23,5 @@ dependencies {
     implementation(libs.exposed.core)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.jdbc)
-    implementation(libs.json)
+    implementation(libs.ktor.serialization.kotlinx.json)
 }

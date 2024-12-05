@@ -4,10 +4,10 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.json.JSONObject
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -111,18 +111,15 @@ class ApplicationTest {
         var id = 0
 
         client.get("/items/search?query=Complete Guide to Kotlin").apply {
-
-            data class Response(val json: String): JSONObject(json) {
-                val items = this.getJSONArray("results")
+            val response = Json.decodeFromString<List<ItemJson>>(bodyAsText())
+            if (response.isNotEmpty()) {
+                val item = response[0]
+                id = item.id
+                assertTrue(id > 0)
+            } else {
+                id = 0
+                println("No items found")
             }
-
-            lateinit var item: JSONObject
-
-            Response(bodyAsText()).items.forEach {
-                item = JSONObject(it.toString())
-            }
-            id = item.getInt("id")
-            println(item.toString())
         }
 
         client.post("/items/borrow") {
@@ -144,7 +141,7 @@ class ApplicationTest {
             header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
-            assertTrue(bodyAsText().contains("Complete Guide to Kotlin"))
+            assertEquals(Json.decodeFromString<List<ItemJson>>(bodyAsText())[0].title, "Complete Guide to Kotlin")
         }
     }
 

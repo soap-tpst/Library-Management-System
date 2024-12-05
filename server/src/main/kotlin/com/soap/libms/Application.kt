@@ -7,10 +7,13 @@ import io.ktor.server.netty.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.json.JSONObject
 import java.time.LocalDate
 
 fun main() {
@@ -42,13 +45,21 @@ fun Application.module() {
         route("/users") {
             post("/add") {
                 val (username, password) = receiveUsernameAndPassword(call) ?: return@post
-                transaction {
-                    Users.insert {
-                        it[Users.username] = username
-                        it[Users.password] = password
+                try {
+                    transaction {
+                        Users.insert {
+                            it[Users.username] = username
+                            it[Users.password] = password
+                        }
+                    }
+                    call.respondText("User added")
+                } catch (e: ExposedSQLException) {
+                    if (e.sqlState == "23505") { // Unique violation
+                        call.respondText("User already exists", status = HttpStatusCode.Conflict)
+                    } else {
+                        call.respondText("Database error", status = HttpStatusCode.InternalServerError)
                     }
                 }
-                call.respondText("User added")
             }
             post("/login") {
                 val (username, password) = receiveUsernameAndPassword(call) ?: return@post
@@ -65,7 +76,7 @@ fun Application.module() {
                             .where ( Items.borrower eq username and Items.isBorrowed )
                             .map { it.toItemJson() }
                     }
-                    call.respondText(borrowedItems.toString(), status = HttpStatusCode.OK)
+                    call.respondText(Json.encodeToString(ListSerializer(ItemJson.serializer()), borrowedItems), status = HttpStatusCode.OK)
                 }
             }
         }
@@ -101,11 +112,11 @@ fun Application.module() {
                         .where((Items.title eq query) or (Items.ISBN eq query))
                         .map { it.toItemJson() }
                 }
-                val resultsJson = mapOf("results" to results)
                 if (results.isEmpty()) {
                     call.respondText("No items found", status = HttpStatusCode.NotFound)
                 } else {
-                    call.respondText(JSONObject(resultsJson).toString(), status = HttpStatusCode.OK)
+                    call.respondText(Json.encodeToString(ListSerializer(ItemJson.serializer()), results),
+                        status = HttpStatusCode.OK)
                 }
             }
 
@@ -146,15 +157,27 @@ fun Application.module() {
     }
 }
 
-fun ResultRow.toItemJson(): Map<String, Any?> {
-    return mapOf(
-        "id" to (this.getOrNull(Items.id) ?: -1), // Add null safety
-        "title" to this[Items.title],
-        "ISBN" to this[Items.ISBN],
-        "type" to this[Items.type],
-        "borrower" to this[Items.borrower],
-        "borrowedDate" to this[Items.borrowedDate],
-        "dueDate" to this[Items.dueDate],
-        "isBorrowed" to this[Items.isBorrowed]
+@Serializable
+data class ItemJson(
+    val id: Int,
+    val title: String,
+    val ISBN: String,
+    val type: String,
+    val borrower: String?,
+    val borrowedDate: String?,
+    val dueDate: String?,
+    val isBorrowed: Boolean
+)
+
+fun ResultRow.toItemJson(): ItemJson {
+    return ItemJson(
+        id = this[Items.id],
+        title = this[Items.title],
+        ISBN = this[Items.ISBN],
+        type = this[Items.type],
+        borrower = this[Items.borrower],
+        borrowedDate = this[Items.borrowedDate],
+        dueDate = this[Items.dueDate],
+        isBorrowed = this[Items.isBorrowed]
     )
 }

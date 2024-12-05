@@ -1,35 +1,32 @@
 package com.soap.libms
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
-fun BorrowPage(modifier: Modifier, windowSizeClass: WindowSizeClass) {
-    var searchResults by remember { mutableStateOf(listOf<Item>()) }
-    var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
+fun BorrowPage(modifier: Modifier, windowSizeClass: WindowSizeClass, shape: Shape = RectangleShape) {
+    var searchResults by remember { mutableStateOf(mutableListOf<Item>()) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(searchQuery) {
+        searchResults = Search.search(searchQuery) as MutableList<Item>
+    }
 
     Surface(
-        modifier = modifier
+        modifier = modifier,
+        shape = shape,
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -38,22 +35,33 @@ fun BorrowPage(modifier: Modifier, windowSizeClass: WindowSizeClass) {
                 value = searchQuery,
                 onValueChange = { newValue ->
                     searchQuery = newValue
-                    searchResults = search(newValue.text)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Search") }
             )
+            Spacer(Modifier.height(16.dp))
             SearchResultsTable(
                 items = searchResults,
                 modifier = Modifier.weight(1f).fillMaxSize(),
-                windowSizeClass = windowSizeClass
+                windowSizeClass = windowSizeClass,
+                onBorrow = { item ->
+                    CoroutineScope(Dispatchers.Default).launch {
+                        if (item.borrow()) {
+                            searchQuery = ""
+                            CurrentUserInstance.currentUser?.fetchUserData(
+                                CurrentUserInstance.currentUser?.username ?: "",
+                                CurrentUserInstance.currentUser?.password ?: ""
+                            )
+                        }
+                    }
+                }
             )
         }
     }
 }
 
 @Composable
-fun SearchResultsTable(items: List<Item>, modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) {
+fun SearchResultsTable(items: List<Item>, modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, onBorrow: (Item) -> Unit = {}) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -80,7 +88,9 @@ fun SearchResultsTable(items: List<Item>, modifier: Modifier = Modifier, windowS
                         Text(item.ISBN, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
-                        onClick = { item.borrow() },
+                        onClick = {
+                            onBorrow(item)
+                        },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Borrow")

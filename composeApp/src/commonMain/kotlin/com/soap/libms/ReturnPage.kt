@@ -9,9 +9,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun BorrowedBookItem(borrowedItem: BorrowedItem, onSelect: (BorrowedItem) -> Unit) {
@@ -32,9 +37,8 @@ fun BorrowedBookItem(borrowedItem: BorrowedItem, onSelect: (BorrowedItem) -> Uni
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItemSelection(items: List<BorrowedItem>, modifier: Modifier = Modifier, onValueChange: (BorrowedItem) -> Unit) {
+fun ItemSelection(items: List<BorrowedItem>, modifier: Modifier = Modifier, onValueChange: (BorrowedItem) -> Unit, selectedItemName: String) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedItemName by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
@@ -58,7 +62,7 @@ fun ItemSelection(items: List<BorrowedItem>, modifier: Modifier = Modifier, onVa
             modifier = Modifier.fillMaxWidth()
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
                 .focusRequester(focusRequester),
-            label = { Text("Item") },
+            label = { Text("Select Item to Add") },
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded)
             },
@@ -71,7 +75,6 @@ fun ItemSelection(items: List<BorrowedItem>, modifier: Modifier = Modifier, onVa
                 BorrowedBookItem(
                     borrowedItem = item,
                     onSelect = {
-                        selectedItemName = it.title
                         onValueChange(it)
                         expanded = false
                     }
@@ -82,22 +85,17 @@ fun ItemSelection(items: List<BorrowedItem>, modifier: Modifier = Modifier, onVa
 }
 
 @Composable
-fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) {
+fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass, shape: Shape = RectangleShape) {
     var selectedItem by remember { mutableStateOf<BorrowedItem?>(null) }
     val selectedItemsForReturn = remember { mutableStateListOf<BorrowedItem>() }
-    // val borrowedItems = CurrentUserInstance.currentUser?.borrowedItems ?: mutableListOf<BorrowedItem>()
-    val borrowedItems = mutableListOf<BorrowedItem>(
-        BorrowedItem(
-            id = 1,
-            title = "The Great Gatsby",
-            type = "Book",
-            ISBN = "978-3-16-148410-0",
-            borrowedDate = "2021-10-01",
-            dueDate = "2021-10-15"
-        ),
-    )
+    var borrowedItems by remember { mutableStateOf(CurrentUserInstance.currentUser?.borrowedItems ?: mutableListOf<BorrowedItem>()) }
+    var selectedItemName by remember { mutableStateOf(selectedItem?.title ?: "") }
 
-    Surface(modifier = modifier) {
+
+    Surface(
+        modifier = modifier,
+        shape = shape
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.Top,
@@ -111,10 +109,15 @@ fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) 
                     ItemSelection(
                         items = borrowedItems,
                         modifier = Modifier.fillMaxWidth(),
-                        onValueChange = { selectedItem = it }
+                        onValueChange = {
+                            selectedItem = it
+                            selectedItemName = it.title
+                                        },
+                        selectedItemName = selectedItemName
                     )
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.height(16.dp))
                     Button(
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             selectedItem?.let {
                                 if (selectedItemsForReturn.contains(it).not()) {
@@ -136,7 +139,11 @@ fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) 
                     ItemSelection(
                         items = borrowedItems,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        onValueChange = { selectedItem = it }
+                        onValueChange = {
+                            selectedItem = it
+                            selectedItemName = it.title
+                                        },
+                        selectedItemName = selectedItemName
                     )
                     Spacer(Modifier.width(16.dp))
                     Button(
@@ -165,10 +172,27 @@ fun ReturnPage(modifier: Modifier = Modifier, windowSizeClass: WindowSizeClass) 
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                val buttonModifier = if (windowSizeClass == WindowSizeClass.COMPACT) {
+                    Modifier.fillMaxWidth()
+                } else {
+                    Modifier
+                }
                 Button(
+                    modifier = buttonModifier,
                     onClick = {
                         selectedItemsForReturn.forEach {
-                            it.returnItem()
+                            CoroutineScope(Dispatchers.Default).launch {
+                                if (it.returnItem()) {
+                                    CurrentUserInstance.currentUser?.fetchUserData(
+                                        CurrentUserInstance.currentUser?.username ?: "",
+                                        CurrentUserInstance.currentUser?.password ?: ""
+                                    )
+                                    selectedItem = null
+                                    selectedItemName = ""
+                                    selectedItemsForReturn.remove(it)
+                                    borrowedItems = CurrentUserInstance.currentUser?.borrowedItems ?: mutableListOf()
+                                }
+                            }
                         }
                     }
                 ) {
