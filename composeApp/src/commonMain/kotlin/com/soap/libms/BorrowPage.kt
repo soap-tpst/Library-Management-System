@@ -34,7 +34,7 @@ fun BorrowPage(modifier: Modifier, windowSizeClass: WindowSizeClass, shape: Shap
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { newValue ->
-                    if (newValue.matches(Regex("^[a-zA-Z0-9]*$"))) searchQuery = newValue
+                    if (newValue.matches(Regex("^[a-zA-Z0-9 ]*$"))) searchQuery = newValue
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Search") }
