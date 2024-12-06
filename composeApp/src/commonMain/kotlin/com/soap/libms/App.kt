@@ -25,7 +25,7 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun App(windowSizeClass: WindowSizeClass) {
     AppTheme {
-        var currentPage by remember { mutableStateOf(Page.BORROW) }
+        var currentPage by remember { mutableStateOf(Page.LOGIN) }
         var isLoggedIn by remember { mutableStateOf(CurrentUserInstance.isLoggedIn) }
 
         LaunchedEffect(Unit) {

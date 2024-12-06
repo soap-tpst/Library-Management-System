@@ -25,10 +25,23 @@ fun LoginPage(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPopUpWindow by remember { mutableStateOf(false) }
-    var loginStatus by remember { mutableStateOf(false) }
 
     var host by remember { mutableStateOf(Host.host) }
     var port by remember { mutableStateOf(Host.port) }
+    var statusCheck by remember { mutableStateOf(false) }
+
+    LaunchedEffect(statusCheck) {
+        if (statusCheck) {
+            while (true) {
+                if (CurrentUserInstance.showDialog) {
+                    showPopUpWindow = true
+                    CurrentUserInstance.showDialog = false
+                    break
+                    statusCheck = false
+                }
+            }
+        }
+    }
 
     Surface(
         modifier = modifier,
@@ -103,17 +116,15 @@ fun LoginPage(
                     modifier = buttonModifier,
                     onClick = {
                         CoroutineScope(Dispatchers.Main).launch {
-                            if (CurrentUserInstance.login(username, password)) {
-                                loginStatus = true
-                            }
+                            CurrentUserInstance.login(username, password)
+                            statusCheck = true
                         }
-                        showPopUpWindow = true
                     }
                 ) {
                     Text("Login")
                 }
                 if (showPopUpWindow) {
-                    if (loginStatus) {
+                    if (CurrentUserInstance.isLoggedIn) {
                         AlertDialog(
                             onDismissRequest = { showPopUpWindow = false },
                             title = { Text("Success") },
@@ -140,9 +151,8 @@ fun LoginPage(
                             }
                         )
                     }
-
                 }
-            }
             }
         }
     }
+}
