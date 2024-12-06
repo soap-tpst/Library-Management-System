@@ -1,7 +1,7 @@
 # Library Management System - Server Components
 
 ## Overview
-A Kotlin-based library management system server built with Ktor framework and Exposed SQL framework for database operations.
+A Kotlin-based library management system built with Ktor framework and Exposed SQL framework for database operations.
 
 ## Core Components
 
@@ -61,6 +61,16 @@ A Kotlin-based library management system server built with Ktor framework and Ex
   - borrowedDate: String?
   - dueDate: String?
   - isBorrowed: Boolean
+- `Item`: Entity class for client side operations:
+  - id: Int
+  - title: String
+  - ISBN: String
+  - type: String
+- `BorrowedItem`: Entity class for client side operations:
+  - Inherits from Item
+  - borrower: String
+  - borrowedDate: String
+  - dueDate: String
 
 ### Testing Suite (ApplicationTest.kt)
 Comprehensive test coverage including:
@@ -72,7 +82,7 @@ Comprehensive test coverage including:
 - Edge cases and error conditions
 
 ### Security Features
-- Password storage in database
+- SHA256 password storage in database
 - User authentication check before operations
 - Input validation for all endpoints
 - SQL injection prevention through Exposed framework
@@ -83,34 +93,10 @@ Comprehensive test coverage including:
 - SQLite: Lightweight, file-based database
 - Kotlinx.serialization: JSON serialization/deserialization
 - Netty: Asynchronous event-driven network application framework
+- Compose Multiplatform/Kotlin Multiplatform: multiplatform support for client components
 
 ## Server Configuration
 - Default port: 8080
 - Host: 0.0.0.0 (accessible from all network interfaces)
 - Database: SQLite (library-database.sqlite)
 - JVM Options: -Xmx64m -Xms64m (defined in gradlew.bat)
-
-## About the Project
-This is a Kotlin Multiplatform project targeting Android, Web, Desktop, Server.
-
-* `/composeApp` is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - `commonMain` is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    `iosMain` would be the right folder for such calls.
-
-* `/server` is for the Ktor server application.
-
-* `/shared` is for the code that will be shared between all targets in the project.
-  The most important subfolder is `commonMain`. If preferred, you can add code to the platform-specific folders here too.
-
-
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
-
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [GitHub](https://github.com/JetBrains/compose-multiplatform/issues).
-
-You can open the web application by running the `:composeApp:wasmJsBrowserDevelopmentRun` Gradle task.
