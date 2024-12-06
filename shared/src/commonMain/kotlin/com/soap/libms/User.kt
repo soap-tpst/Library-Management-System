@@ -16,7 +16,7 @@ class User(val username: String, val password: String) {
 
         val response: HttpResponse = client.post("http://${Host.host}:${Host.port}/users/login") {
             contentType(ContentType.Application.FormUrlEncoded)
-            setBody(listOf("username" to username, "password" to password).formUrlEncode())
+            setBody(listOf("username" to username, "password" to getSha256Hash(password)).formUrlEncode())
         }
 
         if (response.status == HttpStatusCode.OK) {
